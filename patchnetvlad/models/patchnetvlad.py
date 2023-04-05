@@ -39,6 +39,7 @@ import torch.nn.functional as F
 from sklearn.neighbors import NearestNeighbors
 import faiss
 import numpy as np
+from tqdm.auto import tqdm
 
 
 def get_integral_feature(feat_in):
@@ -156,22 +157,28 @@ class PatchNetVLAD(nn.Module):
     def forward(self, x):
         N, C, H, W = x.shape
 
+        # notes: perform a L2 normalization along channel dimension
         if self.normalize_input:
             x = F.normalize(x, p=2, dim=1)  # across descriptor dim
 
-        # soft-assignment
-        soft_assign = self.conv(x).view(N, self.num_clusters, H, W)
+        # soft-assignment (The weights for vlad)
+        soft_assign = self.conv(x).view(N, self.num_clusters, H, W) # notes: perfomr 1x1 conv to change channel dimension
         soft_assign = F.softmax(soft_assign, dim=1)
 
         # calculate residuals to each cluster
         store_residual = torch.zeros([N, self.num_clusters, C, H, W], dtype=x.dtype, layout=x.layout, device=x.device)
         for j in range(self.num_clusters):  # slower than non-looped, but lower memory usage
+            # residual is (x - c)
             residual = x.unsqueeze(0).permute(1, 0, 2, 3, 4) - \
                 self.centroids[j:j + 1, :].expand(x.size(2), x.size(3), -1, -1).permute(2, 3, 0, 1).unsqueeze(0)
 
+            # Here the residual becomes a * (x - c)
             residual *= soft_assign[:, j:j + 1, :].unsqueeze(2)  # residual should be size [N K C H W]
+
+            # To store all residuals information
             store_residual[:, j:j + 1, :, :, :] = residual
 
+        # Reshaped version of store_residual
         vlad_global = store_residual.view(N, self.num_clusters, C, -1)
         vlad_global = vlad_global.sum(dim=-1)
         store_residual = store_residual.view(N, -1, H, W)
@@ -192,5 +199,9 @@ class PatchNetVLAD(nn.Module):
         vlad_global = F.normalize(vlad_global, p=2, dim=2)
         vlad_global = vlad_global.view(x.size(0), -1)
         vlad_global = F.normalize(vlad_global, p=2, dim=1)
+
+        print("vlad_global.shape = ", vlad_global.shape)
+        print("--------------------------------")
+        tqdm.write("vlad_global.shape = ", vlad_global.shape)
 
         return vlad_local, vlad_global  # vlad_local is a list of tensors
