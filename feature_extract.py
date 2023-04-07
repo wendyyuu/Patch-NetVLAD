@@ -49,6 +49,8 @@ from patchnetvlad.tools.datasets import PlaceDataset
 from patchnetvlad.models.models_generic import get_backend, get_model, get_pca_encoding
 from patchnetvlad.tools import PATCHNETVLAD_ROOT_DIR
 
+import time
+
 
 def feature_extract(eval_set, model, device, opt, config):
     if not exists(opt.output_features_dir):
@@ -107,7 +109,7 @@ def main():
                         help='File name (with extension) to an ini file that stores most of the configuration data for patch-netvlad')
     parser.add_argument('--dataset_file_path', type=str, required=True,
                         help='Full path (with extension) to a text file that stores the save location and name of all images in the dataset folder')
-    parser.add_argument('--dataset_root_dir', type=str, default='',
+    parser.add_argument('--dataset_root_dir', type=str, default='/home/wendyu/dataset/Tokyo247',
                         help='If the files in dataset_file_path are relative, use dataset_root_dir as prefix.')
     parser.add_argument('--output_features_dir', type=str, default=join(PATCHNETVLAD_ROOT_DIR, 'output_features'),
                         help='Path to store all patch-netvlad features')
@@ -179,4 +181,8 @@ def main():
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+    temp = torch.cuda.max_memory_allocated()
     main()
+    print("memory: ", torch.cuda.max_memory_allocated() - temp)
+    print("--- %s seconds ---" % (time.time() - start_time))

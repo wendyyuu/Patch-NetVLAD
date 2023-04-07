@@ -202,6 +202,6 @@ class PatchNetVLAD(nn.Module):
 
         print("vlad_global.shape = ", vlad_global.shape)
         print("--------------------------------")
-        tqdm.write("vlad_global.shape = ", vlad_global.shape)
+        # tqdm.write("vlad_global.shape = ", vlad_global.shape)
 
         return vlad_local, vlad_global  # vlad_local is a list of tensors

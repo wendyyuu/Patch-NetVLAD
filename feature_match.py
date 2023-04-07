@@ -53,6 +53,8 @@ from patchnetvlad.tools.datasets import PlaceDataset
 from patchnetvlad.models.local_matcher import local_matcher
 from patchnetvlad.tools import PATCHNETVLAD_ROOT_DIR
 
+import time
+
 
 def compute_recall(gt, predictions, numQ, n_values, recall_str=''):
     correct_at_n = np.zeros(len(n_values))
@@ -212,4 +214,8 @@ def main():
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+    temp = torch.cuda.max_memory_allocated()
     main()
+    print("memory: ", torch.cuda.max_memory_allocated() - temp)
+    print("--- %s seconds ---" % (time.time() - start_time))
