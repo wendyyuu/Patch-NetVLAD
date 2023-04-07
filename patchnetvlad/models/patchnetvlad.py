@@ -181,7 +181,7 @@ class PatchNetVLAD(nn.Module):
         vlad_global = store_residual.view(N, self.num_clusters, C, -1) # (N, K, C, (H*W))
         vlad_global = vlad_global.sum(dim=-1) # (N, K, C)
         store_residual = store_residual.view(N, -1, H, W)
-        print("store_residual.shape = ", store_residual.shape) # (N, (K * C), H, W)
+        # print("store_residual.shape = ", store_residual.shape) # (N, (K * C), H, W)
 
         ivlad = get_integral_feature(store_residual)
         vladflattened = []
@@ -189,7 +189,7 @@ class PatchNetVLAD(nn.Module):
         # self.patch_sizes = [2, 5, 8]
         # self.strides = [1, 1, 1]
         for patch_size, stride in zip(self.patch_sizes, self.strides):
-            print("patch_size = ", patch_size, ", stride = ", stride)
+            # print("patch_size = ", patch_size, ", stride = ", stride)
             vladflattened.append(get_square_regions_from_integral(ivlad, int(patch_size), int(stride)))
 
         vlad_local = []
@@ -198,7 +198,7 @@ class PatchNetVLAD(nn.Module):
             thisvlad = F.normalize(thisvlad, p=2, dim=2)
             thisvlad = thisvlad.view(x.size(0), -1, thisvlad.size(3))
             thisvlad = F.normalize(thisvlad, p=2, dim=1)
-            print("thisvlad.shape = ", thisvlad.shape)
+            # print("thisvlad.shape = ", thisvlad.shape)
             vlad_local.append(thisvlad)
 
         vlad_global = F.normalize(vlad_global, p=2, dim=2)
