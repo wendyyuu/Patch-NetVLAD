@@ -77,7 +77,6 @@ def feature_extract(eval_set, model, device, opt, config):
         for iteration, (input_data, indices) in \
                 enumerate(tqdm(test_data_loader, position=1, leave=False, desc='Test Iter'.rjust(15)), 1):
             
-            print("Iter = ", iteration)
             if iter_feat_extract is not None and iteration >= iter_feat_extract:
                 break
 
@@ -113,6 +112,11 @@ def feature_extract(eval_set, model, device, opt, config):
 
 
 def main():
+    # --- Record time and memory usage --- #
+    start_time = time.time()
+    temp = torch.cuda.max_memory_allocated()
+    # ------------------------------------ #
+
     parser = argparse.ArgumentParser(description='Patch-NetVLAD-Feature-Extract')
     parser.add_argument('--config_path', type=str, default=join(PATCHNETVLAD_ROOT_DIR, 'configs/performance.ini'),
                         help='File name (with extension) to an ini file that stores most of the configuration data for patch-netvlad')
@@ -172,7 +176,6 @@ def main():
         model = get_model(encoder, encoder_dim, config['global_params'], append_pca_layer=use_pca)
         model.load_state_dict(checkpoint['state_dict'])
         
-        print("config['global_params']['nGPU'] = ", config['global_params']['nGPU'])
         if int(config['global_params']['nGPU']) > 1 and torch.cuda.device_count() > 1:
             model.encoder = nn.DataParallel(model.encoder)
             # if opt.mode.lower() != 'cluster':
@@ -187,12 +190,16 @@ def main():
 
     torch.cuda.empty_cache()  # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear the
     # memory after runs
-    print('\n\nDone. Finished extracting and saving features')
+
+    num_images = len(dataset)
+    if 'feature_extract_iter' in config['global_params']:
+        num_iters = int(config['global_params']['feature_extract_iter']) * int(config['feature_extract']['cachebatchsize'])
+
+    print(f'\n\nDone. Finished extracting and saving features from {num_iters} images')
+    print("memory in GB: ", (torch.cuda.max_memory_allocated() - temp) * 1e-9)
+    print(f"--- run time in seconds: {(time.time() - start_time)} ---" )
+    print(f"--- run time per image in seconds: {(time.time() - start_time) / float(num_iters)} ---" )
 
 
 if __name__ == "__main__":
-    start_time = time.time()
-    temp = torch.cuda.max_memory_allocated()
     main()
-    print("memory: ", torch.cuda.max_memory_allocated() - temp)
-    print("--- %s seconds ---" % (time.time() - start_time))

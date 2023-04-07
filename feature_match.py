@@ -165,6 +165,11 @@ def feature_match(eval_set, device, opt, config):
 
 
 def main():
+    # --- Record time and memory usage --- #
+    start_time = time.time()
+    temp = torch.cuda.max_memory_allocated()
+    # ------------------------------------ #
+    
     parser = argparse.ArgumentParser(description='Patch-NetVLAD-Feature-Match')
     parser.add_argument('--config_path', type=str, default=join(PATCHNETVLAD_ROOT_DIR, 'configs/performance.ini'),
                         help='File name (with extension) to an ini file that stores most of the configuration data for patch-netvlad')
@@ -214,8 +219,4 @@ def main():
 
 
 if __name__ == "__main__":
-    start_time = time.time()
-    temp = torch.cuda.max_memory_allocated()
     main()
-    print("memory: ", torch.cuda.max_memory_allocated() - temp)
-    print("--- %s seconds ---" % (time.time() - start_time))
