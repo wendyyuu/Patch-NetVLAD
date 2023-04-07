@@ -64,6 +64,10 @@ def feature_extract(eval_set, model, device, opt, config):
     test_data_loader = DataLoader(dataset=eval_set, num_workers=int(config['global_params']['threads']),
                                   batch_size=int(config['feature_extract']['cacheBatchSize']),
                                   shuffle=False, pin_memory=(not opt.nocuda))
+    
+    iter_feat_extract = None
+    if 'feature_extract_iter' in config['global_params']:
+        iter_feat_extract = int(config['global_params']['feature_extract_iter'])
 
     model.eval()
     with torch.no_grad():
@@ -72,6 +76,11 @@ def feature_extract(eval_set, model, device, opt, config):
 
         for iteration, (input_data, indices) in \
                 enumerate(tqdm(test_data_loader, position=1, leave=False, desc='Test Iter'.rjust(15)), 1):
+            
+            print("Iter = ", iteration)
+            if iter_feat_extract is not None and iteration >= iter_feat_extract:
+                break
+
             indices_np = indices.detach().numpy()
             input_data = input_data.to(device)
             image_encoding = model.encoder(input_data)
@@ -163,6 +172,7 @@ def main():
         model = get_model(encoder, encoder_dim, config['global_params'], append_pca_layer=use_pca)
         model.load_state_dict(checkpoint['state_dict'])
         
+        print("config['global_params']['nGPU'] = ", config['global_params']['nGPU'])
         if int(config['global_params']['nGPU']) > 1 and torch.cuda.device_count() > 1:
             model.encoder = nn.DataParallel(model.encoder)
             # if opt.mode.lower() != 'cluster':

@@ -96,6 +96,13 @@ python feature_extract.py \
   --dataset_root_dir=/path/to/your/pitts/dataset \
   --output_features_dir patchnetvlad/output_features/pitts30k_index
 ```
+```bash
+python feature_extract.py \
+  --config_path patchnetvlad/configs/performance.ini \
+  --dataset_file_path=pitts30k_imageNames_index.txt \
+  --dataset_root_dir=/home/leekt/data.ciirc.cvut.cz/public/projects/2015netVLAD \
+  --output_features_dir patchnetvlad/output_features/pitts30k_index
+```
 
 Repeat for the query images by replacing `_index` with `_query`. Note that you have to adapt `dataset_root_dir`.
 
