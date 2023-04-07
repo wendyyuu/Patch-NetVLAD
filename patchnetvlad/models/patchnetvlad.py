@@ -39,7 +39,6 @@ import torch.nn.functional as F
 from sklearn.neighbors import NearestNeighbors
 import faiss
 import numpy as np
-from tqdm.auto import tqdm
 
 
 def get_integral_feature(feat_in):
@@ -155,7 +154,7 @@ class PatchNetVLAD(nn.Module):
             )
 
     def forward(self, x):
-        N, C, H, W = x.shape
+        N, C, H, W = x.shape # (2, 512, 30, 40)
 
         # notes: perform a L2 normalization along channel dimension
         if self.normalize_input:
@@ -163,29 +162,34 @@ class PatchNetVLAD(nn.Module):
 
         # soft-assignment (The weights for vlad)
         soft_assign = self.conv(x).view(N, self.num_clusters, H, W) # notes: perfomr 1x1 conv to change channel dimension
-        soft_assign = F.softmax(soft_assign, dim=1)
+        soft_assign = F.softmax(soft_assign, dim=1) # (2, 16, 30, 40)
 
         # calculate residuals to each cluster
-        store_residual = torch.zeros([N, self.num_clusters, C, H, W], dtype=x.dtype, layout=x.layout, device=x.device)
+        store_residual = torch.zeros([N, self.num_clusters, C, H, W], dtype=x.dtype, layout=x.layout, device=x.device) # (2, 16, 512, 30, 40)
         for j in range(self.num_clusters):  # slower than non-looped, but lower memory usage
-            # residual is (x - c)
+            # residual is (x - c), dimension: (N, 1, C, H, W)
             residual = x.unsqueeze(0).permute(1, 0, 2, 3, 4) - \
                 self.centroids[j:j + 1, :].expand(x.size(2), x.size(3), -1, -1).permute(2, 3, 0, 1).unsqueeze(0)
-
+            
             # Here the residual becomes a * (x - c)
-            residual *= soft_assign[:, j:j + 1, :].unsqueeze(2)  # residual should be size [N K C H W]
+            residual *= soft_assign[:, j:j + 1, :].unsqueeze(2)  # residual should be size [N K C H W] # (N, 1, C, H, W)
 
             # To store all residuals information
             store_residual[:, j:j + 1, :, :, :] = residual
 
         # Reshaped version of store_residual
-        vlad_global = store_residual.view(N, self.num_clusters, C, -1)
-        vlad_global = vlad_global.sum(dim=-1)
+        vlad_global = store_residual.view(N, self.num_clusters, C, -1) # (N, K, C, (H*W))
+        vlad_global = vlad_global.sum(dim=-1) # (N, K, C)
         store_residual = store_residual.view(N, -1, H, W)
+        print("store_residual.shape = ", store_residual.shape) # (N, (K * C), H, W)
 
         ivlad = get_integral_feature(store_residual)
         vladflattened = []
+
+        # self.patch_sizes = [2, 5, 8]
+        # self.strides = [1, 1, 1]
         for patch_size, stride in zip(self.patch_sizes, self.strides):
+            print("patch_size = ", patch_size, ", stride = ", stride)
             vladflattened.append(get_square_regions_from_integral(ivlad, int(patch_size), int(stride)))
 
         vlad_local = []
@@ -194,14 +198,11 @@ class PatchNetVLAD(nn.Module):
             thisvlad = F.normalize(thisvlad, p=2, dim=2)
             thisvlad = thisvlad.view(x.size(0), -1, thisvlad.size(3))
             thisvlad = F.normalize(thisvlad, p=2, dim=1)
+            print("thisvlad.shape = ", thisvlad.shape)
             vlad_local.append(thisvlad)
 
         vlad_global = F.normalize(vlad_global, p=2, dim=2)
         vlad_global = vlad_global.view(x.size(0), -1)
-        vlad_global = F.normalize(vlad_global, p=2, dim=1)
-
-        print("vlad_global.shape = ", vlad_global.shape)
-        print("--------------------------------")
-        # tqdm.write("vlad_global.shape = ", vlad_global.shape)
+        vlad_global = F.normalize(vlad_global, p=2, dim=1) # (N, (K*C))
 
         return vlad_local, vlad_global  # vlad_local is a list of tensors
